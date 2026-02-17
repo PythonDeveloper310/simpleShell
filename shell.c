@@ -1,13 +1,12 @@
 #include "shell.h"
+#include "utils.h"
+#include <stdio.h>
 #define MAX_INPUT 256
 #define MAX_ARGS 16
-#define VERSION 2.3
+#define VERSION 2.6
 
-int cmp(const char * _Str1, const char * _Str2) {
-    return strcmp(_Str1, _Str2) == 0;
-}
-
-void shell_loop(char *username) {
+void shell_loop(char *username, bool new_user)
+{
     char input[MAX_INPUT];
     char *args[MAX_ARGS];
     char *cmd = NULL;
@@ -16,7 +15,9 @@ void shell_loop(char *username) {
 
     puts("\033[2J\033[1;1H");
     printf("simpleShell version %.1f\n", VERSION);
-    puts("Type 'help' for list of available commands.\n");
+    puts("Type 'help' for list of available commands.");
+    if (!new_user) printf("Welcome back, %s.\n", username);
+    puts("");
 
     while (1) {
         printf("%s@simple-shell:~/ > ", username);
