@@ -1,18 +1,13 @@
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <time.h>
-
+#include "shell.h"
 #define MAX_INPUT 256
 #define MAX_ARGS 16
-#define VERSION 2.0
+#define VERSION 2.3
 
 int cmp(const char * _Str1, const char * _Str2) {
     return strcmp(_Str1, _Str2) == 0;
 }
 
-int main(void)
-{
+void shell_loop(char *username) {
     char input[MAX_INPUT];
     char *args[MAX_ARGS];
     char *cmd = NULL;
@@ -24,7 +19,7 @@ int main(void)
     puts("Type 'help' for list of available commands.\n");
 
     while (1) {
-        printf("shell > ");
+        printf("%s@simple-shell:~/ > ", username);
         double uptime = difftime(time(0), start);
 
         if (!fgets(input, sizeof(input), stdin)) break;
@@ -52,7 +47,7 @@ int main(void)
                 "   echo <msg> - Display the words in <msg> to the screen.\n"
                 "   add <num1> <num2> - Adds num1 with num2 and display the result.\n"
                 "   clear - Clears the screen.\n"
-                "   version - Display the version.\n"
+                "   version/ver - Display the version.\n"
                 "   about - Show simpleShell information.\n"
                 "   ezfetch - An easy and simple version of neofetch/fastfetch.\n"
                 "   exit - Exits shell."
@@ -62,7 +57,7 @@ int main(void)
                 printf("%s ", args[j]);
             puts("");
         } else if (cmp(cmd, "clear")) puts("\033[2J\033[1;1H");
-        else if (cmp(cmd, "version") || cmp(cmd, "ver")) printf("simpleShell version %.1f", VERSION);
+        else if (cmp(cmd, "version") || cmp(cmd, "ver")) printf("simpleShell version %.1f\n", VERSION);
         else if (cmp(cmd, "about")) puts("simpleShell - minimal C shell made for learning.");
         else if (cmp(cmd, "add")) {
             if (args[1] && args[2]) {
@@ -95,3 +90,4 @@ int main(void)
         }
     }
 }
+
