@@ -5,7 +5,7 @@
 #include <stdint.h>
 #include "sha256.h"
 
-// Github: CurryB0i
+// copied from Github: CurryB0i
 
 void padMsg(uint8_t* paddedBinaryMsg,const uint8_t* binary,int len,int padLen) {
   memcpy(paddedBinaryMsg,binary,len*sizeof(uint8_t));

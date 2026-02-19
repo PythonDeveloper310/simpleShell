@@ -1,94 +1,141 @@
 #include "shell.h"
 #include "utils.h"
+#include "fs/fs.h"
 #include <stdio.h>
+#include <time.h>
+
 #define MAX_INPUT 256
 #define MAX_ARGS 16
-#define VERSION 2.6
+#define VERSION 3.2
 
 void shell_loop(char *username, bool new_user)
 {
     char input[MAX_INPUT];
     char *args[MAX_ARGS];
-    char *cmd = NULL;
+    char path[PATH_BUFFER];
+    int current_dir = 0;
     int cmd_count = 0;
-    time_t start = time(0);
+    time_t start = time(NULL);
 
-    puts("\033[2J\033[1;1H");
+    getCurrentPath(current_dir, path, PATH_BUFFER);
+
+    clear_screen();
     printf("simpleShell version %.1f\n", VERSION);
     puts("Type 'help' for list of available commands.");
-    if (!new_user) printf("Welcome back, %s.\n", username);
+    if (!new_user)
+        printf("Welcome back, %s.\n", username);
+    
     puts("");
 
     while (1) {
-        printf("%s@simple-shell:~/ > ", username);
-        double uptime = difftime(time(0), start);
+        loadMetadata();
+
+        printf("%s@simple-shell:%s > ", username, path);
 
         if (!fgets(input, sizeof(input), stdin)) break;
         input[strcspn(input, "\n")] = '\0';
         if (strlen(input) == 0) continue;
 
         int i = 0;
-        char *token = strtok_s(input, " ", &cmd);
-
-        while (token != NULL && i < MAX_ARGS - 1) {
+        char *token = strtok(input, " ");
+        while (token && i < MAX_ARGS - 1) {
             args[i++] = token;
-            token = strtok_s(NULL, " ", &cmd);
+            token = strtok(NULL, " ");
         }
         args[i] = NULL;
-        cmd = args[0];
+
+        char *cmd = args[0];
         cmd_count++;
+        if (!cmd) continue;
 
         if (cmp(cmd, "exit")) {
             puts("Exiting shell...");
             break;
         } else if (cmp(cmd, "help")) {
-            puts("Available commands:");
-            puts(
-                "   help - Show this help message.\n"
-                "   echo <msg> - Display the words in <msg> to the screen.\n"
-                "   add <num1> <num2> - Adds num1 with num2 and display the result.\n"
-                "   clear - Clears the screen.\n"
-                "   version/ver - Display the version.\n"
-                "   about - Show simpleShell information.\n"
-                "   ezfetch - An easy and simple version of neofetch/fastfetch.\n"
-                "   exit - Exits shell."
+            printf(
+                "Available commands:\n"
+                "   Core:\n"
+                "       help       - Show this message.\n"
+                "       echo <msg> - Print message.\n"
+                "       clear      - Clear screen.\n"
+                "       ver        - Show version.\n"
+                "       about      - Info about shell.\n"
+                "       ezfetch    - Show shell info.\n"
+                "       exit       - Exit shell.\n"
+                "\n"
+                "   MicroVFS:\n"
+                "       format      - Format virtual disk (%s).\n"
+                "       mkdir <dir> - Create directory.\n"
+                "       mkfile <f>  - Create file.\n"
+                "       micro <f>   - Edit file.\n"
+                "       cat <f>     - Read file.\n"
+                "       rm <f>      - Delete file.\n"
+                "       cd <dir>    - Change directory.\n"
+                "       ls          - List files.\n",
+                DISK_FILE
             );
         } else if (cmp(cmd, "echo")) {
-            for (int j = 1; args[j] != NULL; j++)
-                printf("%s ", args[j]);
+            for (int j = 1; args[j]; j++) printf("%s ", args[j]);
             puts("");
-        } else if (cmp(cmd, "clear")) puts("\033[2J\033[1;1H");
-        else if (cmp(cmd, "version") || cmp(cmd, "ver")) printf("simpleShell version %.1f\n", VERSION);
-        else if (cmp(cmd, "about")) puts("simpleShell - minimal C shell made for learning.");
-        else if (cmp(cmd, "add")) {
-            if (args[1] && args[2]) {
-                int a = atoi(args[1]);
-                int b = atoi(args[2]);
-                printf("%d", a + b);
-                puts("");
-            } else
-                puts("No arguments. Usage: add <num1> <num2>");
+        } else if (cmp(cmd, "clear")) {
+            clear_screen();
+        } else if (cmp(cmd, "ver")) {
+            printf("simpleShell version %.1f\n", VERSION);
+        } else if (cmp(cmd, "about")) {
+            puts("simpleShell - minimal C shell made for learning.");
         } else if (cmp(cmd, "ezfetch")) {
+            double uptime = difftime(time(NULL), start);
             printf(
-                "     _            _     ___ _        _ _ \n"
-                "  __(_)_ __  _ __| |___/ __| |_  ___| | |\n"
-                " (_-< | '  \\| '_ \\ / -_)__ \\ ' \\/ -_) | |\n"
-                " /__/_|_|_|_| .__/_\\___|___/_||_\\___|_|_|\n"
-                "            |_|                          \n"
-                "\n"
                 "ezFetch\n"
                 "Version: %.1f\n"
-                "Shell: simpleShell\n"
                 "Commands executed: %d\n"
-                "Uptime: %.0f\n",
-                VERSION,
-                cmd_count,
-                uptime
+                "Uptime: %.0f seconds\n",
+                VERSION, cmd_count, uptime
             );
+        } else if (cmp(cmd, "format")) {
+            formatDisk();
+        } else if (cmp(cmd, "mkdir") || cmp(cmd, "mkfile")) {
+            if (!args[1]) {
+                printf("Usage: %s <name>\n", cmd);
+                continue;
+            }
+            int type = cmp(cmd, "mkdir") ? TYPE_DIRECTORY : TYPE_FILE;
+            if (createEntry(args[1], current_dir, type) != -1)
+                saveMetadata();
+            else printf("Failed to create %s.\n", args[1]);
+        } else if (cmp(cmd, "micro")) {
+            if (!args[1]) { puts("Usage: micro <fileName>"); continue; }
+            int idx = findEntry(args[1], current_dir);
+            if (idx != -1 && getType(idx) == TYPE_FILE) microWrite(idx);
+            else puts("File not found.");
+        } else if (cmp(cmd, "cat")) {
+            if (!args[1]) { puts("Usage: cat <fileName>"); continue; }
+            int idx = findEntry(args[1], current_dir);
+            if (idx != -1 && getType(idx) == TYPE_FILE) readFile(idx);
+            else puts("File not found.");
+        } else if (cmp(cmd, "rm")) {
+            if (!args[1]) { puts("Usage: rm <fileName>"); continue; }
+            int idx = findEntry(args[1], current_dir);
+            if (idx != -1) {
+                deleteEntry(idx);
+                saveMetadata();
+            } else puts("File/Directory not found.");
+        } else if (cmp(cmd, "cd")) {
+            if (!args[1]) { puts("Usage: cd <dirName>"); continue; }
+            if (strcmp(args[1], "..") == 0) {
+                int parent = getParent(current_dir);
+                if (parent != -1) current_dir = parent;
+            } else {
+                int idx = findEntry(args[1], current_dir);
+                if (idx != -1 && isDirectory(idx)) current_dir = idx;
+                else puts("Directory not found.");
+            }
+            getCurrentPath(current_dir, path, PATH_BUFFER);
+        } else if (cmp(cmd, "ls")) {
+            listDirectory(current_dir);
         }
         else {
             printf("Unknown command: %s\n", cmd);
         }
     }
 }
-

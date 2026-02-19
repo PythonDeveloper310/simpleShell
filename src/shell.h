@@ -1,5 +1,4 @@
-#ifndef SHELL_H
-#define SHELL_H
+#pragma once
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -8,5 +7,3 @@
 #include <time.h>
 
 void shell_loop(char *username, bool new_user);
-
-#endif
