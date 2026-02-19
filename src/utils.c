@@ -22,3 +22,7 @@ void sha256_string(char *input, char output[65]) {
 
     output[64] = 0;
 }
+
+void clear_screen() {
+    puts("\033[2J\033[1;1H");
+}

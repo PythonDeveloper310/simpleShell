@@ -1,5 +1,7 @@
 #pragma once
 
+// copied from Github: CurryB0i
+
 #ifdef __cplusplus
 extern "C" {
 #endif
